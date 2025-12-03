@@ -12,8 +12,8 @@ function App() {
   const [aiCopied, setAiCopied] = useState(false);
   const [password, setPassword] = useState("");
 
-  const CORRECT_PASSWORD = import.meta.env.NEXT_PUBLIC_CORRECT_PASSWORD || "";
-  const OPENAI_API_KEY = import.meta.env.NEXT_PUBLIC_OPENAI_API_KEY || "";
+  const CORRECT_PASSWORD = import.meta.env.VITE_CORRECT_PASSWORD || "";
+  const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || "";
 
   // Функция для удаления слова или фразы из текста
   const processText = (inputText, word) => {

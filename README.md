@@ -17,8 +17,8 @@ cp .env.example .env
 ```
 
 Заполните переменные в `.env`:
-- `NEXT_PUBLIC_OPENAI_API_KEY` - ваш API ключ от OpenAI
-- `NEXT_PUBLIC_CORRECT_PASSWORD` - пароль для доступа к AI функционалу
+- `VITE_OPENAI_API_KEY` - ваш API ключ от OpenAI
+- `VITE_CORRECT_PASSWORD` - пароль для доступа к AI функционалу
 
 ## Запуск
 
