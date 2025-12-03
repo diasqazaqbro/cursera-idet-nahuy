@@ -8,6 +8,18 @@
 npm install
 ```
 
+## Настройка переменных окружения
+
+Создайте файл `.env` в корне проекта на основе `.env.example`:
+
+```bash
+cp .env.example .env
+```
+
+Заполните переменные в `.env`:
+- `NEXT_PUBLIC_OPENAI_API_KEY` - ваш API ключ от OpenAI
+- `NEXT_PUBLIC_CORRECT_PASSWORD` - пароль для доступа к AI функционалу
+
 ## Запуск
 
 ```bash

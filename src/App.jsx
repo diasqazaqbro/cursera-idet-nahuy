@@ -7,6 +7,13 @@ function App() {
   );
   const [result, setResult] = useState("");
   const [copied, setCopied] = useState(false);
+  const [aiResponse, setAiResponse] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [aiCopied, setAiCopied] = useState(false);
+  const [password, setPassword] = useState("");
+
+  const CORRECT_PASSWORD = import.meta.env.NEXT_PUBLIC_CORRECT_PASSWORD || "";
+  const OPENAI_API_KEY = import.meta.env.NEXT_PUBLIC_OPENAI_API_KEY || "";
 
   // Функция для удаления слова или фразы из текста
   const processText = (inputText, word) => {
@@ -122,17 +129,88 @@ function App() {
     return result;
   };
 
+  // Функция для отправки текста в OpenAI
+  const sendToOpenAI = async (processedText) => {
+    if (!processedText || processedText.trim().length === 0) {
+      setAiResponse("");
+      return;
+    }
+
+    // Проверка пароля
+    if (!password || password !== CORRECT_PASSWORD) {
+      setAiResponse("");
+      return;
+    }
+
+    // Проверка наличия API ключа
+    if (!OPENAI_API_KEY) {
+      setAiResponse("Ошибка: API ключ не настроен. Проверьте файл .env");
+      return;
+    }
+
+    setIsLoading(true);
+    setAiResponse("");
+
+    try {
+      const response = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-3.5-turbo",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are a helpful assistant. Return only the answer to the question, without any additional explanations or formatting.",
+              },
+              {
+                role: "user",
+                content: processedText,
+              },
+            ],
+            max_tokens: 1000,
+            temperature: 0.7,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const aiAnswer =
+        data.choices[0]?.message?.content || "Не удалось получить ответ";
+      setAiResponse(aiAnswer);
+    } catch (error) {
+      console.error("Ошибка при отправке в OpenAI:", error);
+      setAiResponse(`Ошибка: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const removeWord = () => {
-    setResult(processText(text, wordToRemove));
+    const processed = processText(text, wordToRemove);
+    setResult(processed);
+    sendToOpenAI(processed);
   };
 
   const handleTextChange = (e) => {
     const newText = e.target.value;
     setText(newText);
     if (wordToRemove) {
-      setResult(processText(newText, wordToRemove));
+      const processed = processText(newText, wordToRemove);
+      setResult(processed);
+      sendToOpenAI(processed);
     } else {
       setResult("");
+      setAiResponse("");
     }
   };
 
@@ -140,9 +218,12 @@ function App() {
     const newWord = e.target.value;
     setWordToRemove(newWord);
     if (text) {
-      setResult(processText(text, newWord));
+      const processed = processText(text, newWord);
+      setResult(processed);
+      sendToOpenAI(processed);
     } else {
       setResult("");
+      setAiResponse("");
     }
   };
 
@@ -150,7 +231,10 @@ function App() {
     setText("");
     setWordToRemove("");
     setResult("");
+    setAiResponse("");
+    setPassword("");
     setCopied(false);
+    setAiCopied(false);
   };
 
   const handleCopy = async () => {
@@ -159,6 +243,18 @@ function App() {
         await navigator.clipboard.writeText(result);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error("Ошибка копирования:", err);
+      }
+    }
+  };
+
+  const handleAiCopy = async () => {
+    if (aiResponse) {
+      try {
+        await navigator.clipboard.writeText(aiResponse);
+        setAiCopied(true);
+        setTimeout(() => setAiCopied(false), 2000);
       } catch (err) {
         console.error("Ошибка копирования:", err);
       }
@@ -177,6 +273,72 @@ function App() {
             Введите текст и слово, которое нужно удалить
           </p>
         </div>
+
+        {/* Password Input Card - сверху */}
+        <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 mb-6">
+          <div>
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              🔐 Пароль для доступа к AI
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Введите пароль"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 text-gray-900 placeholder-gray-400"
+            />
+            {password && password !== CORRECT_PASSWORD && (
+              <p className="mt-2 text-sm text-red-600">
+                ⚠️ Неверный пароль. AI не будет работать.
+              </p>
+            )}
+            {password === CORRECT_PASSWORD && (
+              <p className="mt-2 text-sm text-green-600">
+                ✓ Пароль верный. AI активирован.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* AI Response Card - сверху */}
+        {(aiResponse || isLoading) && (
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl shadow-lg p-6 sm:p-8 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-lg font-semibold text-gray-900">
+                🤖 Ответ от AI
+              </label>
+              <div className="flex items-center gap-3">
+                {isLoading && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>
+                    Загрузка...
+                  </div>
+                )}
+                {!isLoading && aiResponse && (
+                  <button
+                    onClick={handleAiCopy}
+                    className="text-sm text-green-600 hover:text-green-800 font-medium transition-colors flex items-center gap-1"
+                  >
+                    {aiCopied ? "✓ Скопировано!" : "📋 Копировать"}
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="bg-white border border-green-200 rounded-lg p-4 min-h-[80px]">
+              {isLoading ? (
+                <p className="text-gray-500 italic">Обработка запроса...</p>
+              ) : (
+                <p className="text-gray-800 whitespace-pre-wrap break-words">
+                  {aiResponse}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Main Card */}
         <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 space-y-6">
